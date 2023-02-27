@@ -1,17 +1,21 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
+import 'package:http/http.dart' as http;
 import 'package:jwt_decoder/jwt_decoder.dart';
 
 void main() {
-  runApp(LoginApp());
+  runApp(MyApp());
 }
 
-class LoginApp extends StatelessWidget {
+class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Login Demo JWT',
-      debugShowCheckedModeBanner: false,
+      title: 'Simple JWT Login',
+        debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
       home: LoginPage(),
     );
   }
@@ -24,30 +28,29 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
 
   String _errorMessage = '';
 
-  void _login() {
+  Future<void> _login() async {
     final username = _usernameController.text.trim();
     final password = _passwordController.text.trim();
-    if (username == 'pedro' && password == 'pedro123') {
-      final token = _createToken(username);
-      //final decodedToken = JWT.decode(token);
+
+    final response = await http.post(
+      Uri.parse('http://192.168.1.5:3000/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'username': username, 'password': password}),
+    );
+
+    if (response.statusCode == 200) {
+      final token = jsonDecode(response.body)['token'];
       final decodedToken = JwtDecoder.decode(token);
-      final usernameFromToken = decodedToken['username'];
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text('Login successful'),
-          content: Text('Welcome, $usernameFromToken!'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('OK'),
-            ),
-          ],
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => HomePage(userId: decodedToken['userId']),
         ),
       );
     } else {
@@ -56,18 +59,6 @@ class _LoginPageState extends State<LoginPage> {
       });
     }
   }
-
-  String _createToken(String username) {
-    final jwt = JWT(
-        {
-          'username': username,
-        }
-    );
-
-    final token = jwt.sign(SecretKey('dup9!@#%^&*()zrjzgf7bzqytmb5rf662zka2eh'));
-    return token;
-  }
-
 
   @override
   Widget build(BuildContext context) {
@@ -80,12 +71,12 @@ class _LoginPageState extends State<LoginPage> {
         child: Form(
           key: _formKey,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextFormField(
                 controller: _usernameController,
                 decoration: InputDecoration(
-                  hintText: 'Username',
+                  labelText: 'Username',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -94,12 +85,13 @@ class _LoginPageState extends State<LoginPage> {
                   return null;
                 },
               ),
+              SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
-                obscureText: true,
                 decoration: InputDecoration(
-                  hintText: 'Password',
+                  labelText: 'Password',
                 ),
+                obscureText: true,
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Please enter your password';
@@ -107,29 +99,55 @@ class _LoginPageState extends State<LoginPage> {
                   return null;
                 },
               ),
-              SizedBox(height: 16.0),
-              Text(
-                _errorMessage,
-                style: TextStyle(
-                  color: Colors.red,
-                ),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    _login();
+                  }
+                },
+                child: Text('Login'),
               ),
-              SizedBox(height: 16.0),
-              Center(
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      _login();
-                    }
-                  },
-                  child: Text('Login'),
+              if (_errorMessage.isNotEmpty)
+                Text(
+                  _errorMessage,
+                  style: TextStyle(color: Colors.red),
                 ),
-              ),
-              Container(
-                child: Text('\n\n\nTest it:\nUsername:pedro --> Password: pedro123\n\n\nNote:This is for educational purposes only.'
-                    ' All the established secret keys are used for this example rather than in production.'),
-              ),],
+            ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class HomePage extends StatelessWidget {
+  final int userId;
+
+  const HomePage({required this.userId});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Home'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('Welcome, User # $userId!'),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginPage()),
+                );
+              },
+              child: Text('Logout'),
+            ),
+          ],
         ),
       ),
     );
