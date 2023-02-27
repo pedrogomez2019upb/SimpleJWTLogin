@@ -38,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text.trim();
 
     final response = await http.post(
-      Uri.parse('http://192.168.1.5:3000/login'),
+      Uri.parse('http://10.153.60.69:3000/login'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'username': username, 'password': password}),
     );
